@@ -29,13 +29,7 @@ contract OperationTest is Setup {
 
         // Earn Interest
         skip(1 days);
-        // Should increase the ETH price in the pool and
-        // lead to reporting a profit.
-        deal(address(asset), address(6), 400_000 ether);
-        vm.startPrank(address(6));
-        asset.approve(address(swap), 400_000 ether);
-        swap.sellA(400_000 ether, 1, address(6));
-        vm.stopPrank();
+        simulateEthUp();
 
         // Report profit
         vm.prank(keeper);
@@ -45,6 +39,7 @@ contract OperationTest is Setup {
         assertEq(loss, 0, "!loss");
 
         skip(strategy.profitMaxUnlockTime());
+        priceFeed.update();
 
         uint256 balanceBefore = asset.balanceOf(user);
 
@@ -77,6 +72,7 @@ contract OperationTest is Setup {
         assertEq(loss, 0, "!loss1");
 
         skip(strategy.profitMaxUnlockTime());
+        priceFeed.update();
 
         uint256 balanceBefore = asset.balanceOf(user);
 
@@ -111,6 +107,7 @@ contract OperationTest is Setup {
         assertEq(loss, 0, "!loss");
 
         skip(strategy.profitMaxUnlockTime());
+        priceFeed.update();
 
         // Get the expected fee
         uint256 expectedShares = (profit * 1000) / MAX_BPS;
@@ -147,6 +144,7 @@ contract OperationTest is Setup {
 
         // Skip some time
         skip(1 days);
+        priceFeed.update();
 
         (trigger,) = strategy.tendTrigger();
         assertTrue(!trigger);
@@ -159,6 +157,7 @@ contract OperationTest is Setup {
 
         // Unlock Profits
         skip(strategy.profitMaxUnlockTime());
+        priceFeed.update();
 
         (trigger,) = strategy.tendTrigger();
         assertTrue(!trigger);

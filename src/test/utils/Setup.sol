@@ -26,7 +26,7 @@ contract Setup is ExtendedTest, IEvents {
     ERC20 public asset;
     IStrategyInterface public strategy;
     ISwapper public swap;
-    IAggregator public priceFeed;
+    MockEthPriceFeed public priceFeed;
 
     mapping(string => address) public tokenAddrs;
 
@@ -160,5 +160,6 @@ contract Setup is ExtendedTest, IEvents {
         asset.approve(address(swap), 400_000 ether);
         swap.sellA(400_000 ether, 1, address(6));
         vm.stopPrank();
+        priceFeed.update();
     }
 }

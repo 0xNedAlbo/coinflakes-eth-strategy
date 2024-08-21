@@ -35,8 +35,8 @@ contract ShutdownTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        uint256 slippage = SwapMath.sellSlippage(balanceBefore + _amount, asset.balanceOf(user));
-        assertLe(slippage, 100_000_000, "!final balance");
+        uint256 slippage = SwapMath.sellSlippage(balanceBefore + _amount, asset.balanceOf(user), 10_000);
+        assertLe(slippage, 100, "!final balance");
     }
 
     // TODO: Add tests for any emergency function added.

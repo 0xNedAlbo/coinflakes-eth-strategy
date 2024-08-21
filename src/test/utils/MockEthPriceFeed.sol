@@ -7,16 +7,18 @@ import { IAggregator } from "swap-helpers/src/interfaces/chainlink/IAggregator.s
 contract MockEthPriceFeed is IAggregator {
     ISwapper public swap;
 
+    int256 public latestAnswer;
+    uint256 public latestTimestamp;
+
     constructor(address swapAddress) {
         swap = ISwapper(swapAddress);
+        latestAnswer = int256(swap.previewBuyB(1 ether) / 10 ** 10);
+        latestTimestamp = block.timestamp;
     }
 
-    function latestAnswer() external view override returns (int256) {
-        return int256(swap.previewBuyB(1 ether) / 10 ** 10);
-    }
-
-    function latestTimestamp() external view override returns (uint256) {
-        return block.timestamp;
+    function update() external {
+        latestAnswer = int256(swap.previewBuyB(1 ether) / 10 ** 10);
+        latestTimestamp = block.timestamp;
     }
 
     function latestRound() external pure override returns (uint256) {
@@ -29,5 +31,13 @@ contract MockEthPriceFeed is IAggregator {
 
     function getTimestamp(uint256) external pure override returns (uint256) {
         revert("not implemented");
+    }
+
+    function setLatestAnswer(int256 newAnswer) public {
+        latestAnswer = newAnswer;
+    }
+
+    function setLatestTimestamp(uint256 newTimestamp) public {
+        latestTimestamp = newTimestamp;
     }
 }

@@ -16,13 +16,13 @@ contract CoinflakesEthStrategy is BaseStrategy {
     using SafeERC20 for IERC20;
     using SafeERC20 for ERC20;
 
-    uint256 public constant MAX_BPS = 10_000_000_000; // 10000 BPS
+    uint256 public constant MAX_BPS = 10_000; // 100 Percent
     ISwapper public swap;
     IAggregator public priceFeed;
 
     IERC20 public WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    uint256 maxSlippage = 100_000_000; // 100 BPS
-    uint256 maxOracleDelay = 30 minutes;
+    uint256 public maxSlippage = 1000; // BPS
+    uint256 public maxOracleDelay = 30 minutes;
 
     event SwapChange(address indexed newSwap);
     event MaxSlippageChange(uint256 maxSlippage);
@@ -50,7 +50,11 @@ contract CoinflakesEthStrategy is BaseStrategy {
         require(marketPrice > 0, "invalid price from oracle");
         uint256 marketQuote = daiAmount * (10 ** 8) / uint256(marketPrice);
         uint256 swapQuote = swap.previewSellA(daiAmount);
-        require(SwapMath.sellSlippage(marketQuote, swapQuote) <= maxSlippage, "difference from oracle too high");
+        uint256 slippage = SwapMath.sellSlippage(marketQuote, swapQuote, MAX_BPS);
+        console.log("Market quote: ", marketQuote);
+        console.log("Swap quote: ", swapQuote);
+        console.log("Slippage: ", slippage);
+        require(slippage <= maxSlippage, "difference from oracle too high");
         // Swap tokens
         asset.safeTransferFrom(msg.sender, address(this), daiAmount);
         asset.approve(address(swap), daiAmount);
@@ -64,7 +68,7 @@ contract CoinflakesEthStrategy is BaseStrategy {
         uint256 swapQuote = swap.previewBuyA(daiAmount);
         uint256 wethBalance = WETH.balanceOf(address(this));
         uint256 marketQuote = daiAmount * (10 ** 8) / uint256(marketPrice);
-        require(SwapMath.buySlippage(marketQuote, swapQuote) <= maxSlippage, "difference from oracle too high");
+        require(SwapMath.buySlippage(marketQuote, swapQuote, MAX_BPS) <= maxSlippage, "difference from oracle too high");
         // Swap tokens
         if (swapQuote <= wethBalance) {
             WETH.approve(address(swap), swapQuote);
@@ -84,7 +88,9 @@ contract CoinflakesEthStrategy is BaseStrategy {
         int256 marketPrice = priceFeed.latestAnswer();
         require(marketPrice > 0, "invalid price from oracle");
         uint256 marketQuote = _totalAssets * (10 ** 8) / uint256(marketPrice);
-        require(SwapMath.sellSlippage(marketQuote, _totalAssets) <= maxSlippage, "difference from oracle too high");
+        require(
+            SwapMath.sellSlippage(marketQuote, _totalAssets, MAX_BPS) <= maxSlippage, "difference from oracle too high"
+        );
     }
 
     function changeSwap(address newSwap) public onlyManagement {
