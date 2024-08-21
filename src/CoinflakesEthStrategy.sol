@@ -39,9 +39,6 @@ contract CoinflakesEthStrategy is BaseStrategy {
     function _freeFunds(uint256 daiAmount) internal override {
         uint256 wethAmount = swap.previewBuyA(daiAmount);
         uint256 wethBalance = WETH.balanceOf(address(this));
-        console.log("dai amount: ", daiAmount);
-        console.log("weth amount: ", wethAmount);
-        console.log("weth balance: ", wethBalance);
         if (wethAmount <= wethBalance) {
             WETH.approve(address(swap), wethAmount);
             swap.buyA(daiAmount, wethAmount, address(this));
