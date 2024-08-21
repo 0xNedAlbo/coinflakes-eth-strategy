@@ -2,13 +2,15 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
-import {ExtendedTest} from "./ExtendedTest.sol";
+import { ExtendedTest } from "./ExtendedTest.sol";
 
-import {Strategy, ERC20} from "../../Strategy.sol";
-import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ISwapper, EthSwapper } from "swap-helpers/src/EthSwapper.sol";
+import { CoinflakesEthStrategy } from "../../CoinflakesEthStrategy.sol";
+import { IStrategyInterface } from "../../interfaces/IStrategyInterface.sol";
 
 // Inherit the events so they can be checked if desired.
-import {IEvents} from "@tokenized-strategy/interfaces/IEvents.sol";
+import { IEvents } from "@tokenized-strategy/interfaces/IEvents.sol";
 
 interface IFactory {
     function governance() external view returns (address);
@@ -22,6 +24,7 @@ contract Setup is ExtendedTest, IEvents {
     // Contract instances that we will use repeatedly.
     ERC20 public asset;
     IStrategyInterface public strategy;
+    ISwapper public swap;
 
     mapping(string => address) public tokenAddrs;
 
@@ -39,8 +42,8 @@ contract Setup is ExtendedTest, IEvents {
     uint256 public MAX_BPS = 10_000;
 
     // Fuzz from $0.01 of 1e6 stable coins up to 1 trillion of a 1e18 coin
-    uint256 public maxFuzzAmount = 1e30;
-    uint256 public minFuzzAmount = 10_000;
+    uint256 public maxFuzzAmount = 1e24;
+    uint256 public minFuzzAmount = 1e17;
 
     // Default profit max unlock time is set for 10 days
     uint256 public profitMaxUnlockTime = 10 days;
@@ -69,10 +72,9 @@ contract Setup is ExtendedTest, IEvents {
     }
 
     function setUpStrategy() public returns (address) {
+        swap = new EthSwapper();
         // we save the strategy as a IStrategyInterface to give it the needed interface
-        IStrategyInterface _strategy = IStrategyInterface(
-            address(new Strategy(address(asset), "Tokenized Strategy"))
-        );
+        IStrategyInterface _strategy = IStrategyInterface(address(new CoinflakesEthStrategy(address(swap))));
 
         // set keeper
         _strategy.setKeeper(keeper);
@@ -87,11 +89,7 @@ contract Setup is ExtendedTest, IEvents {
         return address(_strategy);
     }
 
-    function depositIntoStrategy(
-        IStrategyInterface _strategy,
-        address _user,
-        uint256 _amount
-    ) public {
+    function depositIntoStrategy(IStrategyInterface _strategy, address _user, uint256 _amount) public {
         vm.prank(_user);
         asset.approve(address(_strategy), _amount);
 
@@ -99,11 +97,7 @@ contract Setup is ExtendedTest, IEvents {
         _strategy.deposit(_amount, _user);
     }
 
-    function mintAndDepositIntoStrategy(
-        IStrategyInterface _strategy,
-        address _user,
-        uint256 _amount
-    ) public {
+    function mintAndDepositIntoStrategy(IStrategyInterface _strategy, address _user, uint256 _amount) public {
         airdrop(asset, _user, _amount);
         depositIntoStrategy(_strategy, _user, _amount);
     }
@@ -114,11 +108,11 @@ contract Setup is ExtendedTest, IEvents {
         uint256 _totalAssets,
         uint256 _totalDebt,
         uint256 _totalIdle
-    ) public {
+    )
+        public
+    {
         uint256 _assets = _strategy.totalAssets();
-        uint256 _balance = ERC20(_strategy.asset()).balanceOf(
-            address(_strategy)
-        );
+        uint256 _balance = ERC20(_strategy.asset()).balanceOf(address(_strategy));
         uint256 _idle = _balance > _assets ? _assets : _balance;
         uint256 _debt = _assets - _idle;
         assertEq(_assets, _totalAssets, "!totalAssets");
