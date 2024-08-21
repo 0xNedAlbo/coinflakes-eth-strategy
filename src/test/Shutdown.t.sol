@@ -3,6 +3,7 @@ pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
 import { Setup, ERC20, IStrategyInterface } from "./utils/Setup.sol";
+import { SwapMath } from "swap-helpers/src/utils/SwapMath.sol";
 
 contract ShutdownTest is Setup {
     function setUp() public virtual override {
@@ -19,6 +20,7 @@ contract ShutdownTest is Setup {
 
         // Earn Interest
         skip(1 days);
+        simulateEthUp();
 
         // Shutdown the strategy
         vm.prank(management);
@@ -33,7 +35,8 @@ contract ShutdownTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        assertGe(asset.balanceOf(user), balanceBefore + _amount, "!final balance");
+        uint256 slippage = SwapMath.sellSlippage(balanceBefore + _amount, asset.balanceOf(user));
+        assertLe(slippage, 100_000_000, "!final balance");
     }
 
     // TODO: Add tests for any emergency function added.

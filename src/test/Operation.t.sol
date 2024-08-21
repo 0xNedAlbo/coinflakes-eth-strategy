@@ -100,8 +100,6 @@ contract OperationTest is Setup {
 
         // Earn Interest
         skip(1 days);
-
-        // TODO: implement logic to simulate earning interest.
         simulateEthUp();
 
         // Report profit
@@ -170,13 +168,5 @@ contract OperationTest is Setup {
 
         (trigger,) = strategy.tendTrigger();
         assertTrue(!trigger);
-    }
-
-    function simulateEthUp() public {
-        deal(address(asset), address(6), 400_000 ether);
-        vm.startPrank(address(6));
-        asset.approve(address(swap), 400_000 ether);
-        swap.sellA(400_000 ether, 1, address(6));
-        vm.stopPrank();
     }
 }

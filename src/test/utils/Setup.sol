@@ -8,6 +8,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ISwapper, EthSwapper } from "swap-helpers/src/EthSwapper.sol";
 import { CoinflakesEthStrategy } from "../../CoinflakesEthStrategy.sol";
 import { IStrategyInterface } from "../../interfaces/IStrategyInterface.sol";
+import { IAggregator, MockEthPriceFeed } from "./MockEthPriceFeed.sol";
 
 // Inherit the events so they can be checked if desired.
 import { IEvents } from "@tokenized-strategy/interfaces/IEvents.sol";
@@ -25,6 +26,7 @@ contract Setup is ExtendedTest, IEvents {
     ERC20 public asset;
     IStrategyInterface public strategy;
     ISwapper public swap;
+    IAggregator public priceFeed;
 
     mapping(string => address) public tokenAddrs;
 
@@ -73,8 +75,10 @@ contract Setup is ExtendedTest, IEvents {
 
     function setUpStrategy() public returns (address) {
         swap = new EthSwapper();
+        priceFeed = new MockEthPriceFeed(address(swap));
         // we save the strategy as a IStrategyInterface to give it the needed interface
-        IStrategyInterface _strategy = IStrategyInterface(address(new CoinflakesEthStrategy(address(swap))));
+        IStrategyInterface _strategy =
+            IStrategyInterface(address(new CoinflakesEthStrategy(address(swap), address(priceFeed))));
 
         // set keeper
         _strategy.setKeeper(keeper);
@@ -148,5 +152,13 @@ contract Setup is ExtendedTest, IEvents {
         tokenAddrs["USDT"] = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
         tokenAddrs["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         tokenAddrs["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    }
+
+    function simulateEthUp() public {
+        deal(address(asset), address(6), 400_000 ether);
+        vm.startPrank(address(6));
+        asset.approve(address(swap), 400_000 ether);
+        swap.sellA(400_000 ether, 1, address(6));
+        vm.stopPrank();
     }
 }
