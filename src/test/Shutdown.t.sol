@@ -5,7 +5,7 @@ import "forge-std/console2.sol";
 import { Setup, ERC20, IStrategyInterface } from "./utils/Setup.sol";
 import { SwapMath } from "swap-helpers/src/utils/SwapMath.sol";
 
-contract ShutdownTest is Setup {
+contract ShutdownTest is Setup, SwapMath {
     function setUp() public virtual override {
         super.setUp();
     }
@@ -35,7 +35,7 @@ contract ShutdownTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        uint256 slippage = SwapMath.sellSlippage(balanceBefore + _amount, asset.balanceOf(user), 10_000);
+        uint256 slippage = sellSlippage(balanceBefore + _amount, asset.balanceOf(user), 10_000);
         assertLe(slippage, 100, "!final balance");
     }
 
