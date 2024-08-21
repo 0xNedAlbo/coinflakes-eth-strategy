@@ -23,7 +23,7 @@ contract PriceFeedTest is Setup {
         strategy.deposit(10_000 ether, user);
     }
 
-    function test_priceFeedDifference() public {
+    function test_priceFeedDifferenceOnDeposits() public {
         priceFeed.update();
         int256 price = priceFeed.latestAnswer();
         uint256 daiAmount = uint256(price) * 10 ** 10;
@@ -32,13 +32,44 @@ contract PriceFeedTest is Setup {
 
         vm.prank(user);
         asset.approve(address(strategy), daiAmount);
-        vm.prank(management);
-        CoinflakesEthStrategy(address(strategy)).setMaxSlippage(100_000_000);
-        vm.prank(management);
-        priceFeed.setLatestAnswer(price / 2);
 
-        vm.expectRevert(bytes("oracle out of date"));
+        vm.startPrank(management);
+        CoinflakesEthStrategy(address(strategy)).setMaxSlippage(4999);
+        priceFeed.setLatestAnswer(price / 2);
+        vm.stopPrank();
+
+        vm.expectRevert(bytes("difference from oracle too high"));
         vm.prank(user);
         strategy.deposit(daiAmount, user);
+    }
+
+    function test_priceFeedDifferenceOnReports() public {
+        priceFeed.update();
+        uint256 daiAmount = 10_000 ether;
+        mintAndDepositIntoStrategy(strategy, user, daiAmount);
+
+        vm.startPrank(management);
+        CoinflakesEthStrategy(address(strategy)).setMaxSlippage(4999);
+        priceFeed.setLatestAnswer(priceFeed.latestAnswer() * 2);
+        vm.stopPrank();
+
+        vm.expectRevert(bytes("difference from oracle too high"));
+        vm.prank(user);
+        strategy.withdraw(daiAmount, user, user, 5000);
+    }
+
+    function test_priceFeedDifferenceOnWithdraws() public {
+        priceFeed.update();
+        uint256 daiAmount = 10_000 ether;
+        mintAndDepositIntoStrategy(strategy, user, daiAmount);
+
+        vm.startPrank(management);
+        CoinflakesEthStrategy(address(strategy)).setMaxSlippage(4999);
+        priceFeed.setLatestAnswer(priceFeed.latestAnswer() * 2);
+        vm.stopPrank();
+
+        vm.expectRevert(bytes("difference from oracle too high"));
+        vm.prank(management);
+        strategy.report();
     }
 }

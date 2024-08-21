@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.18;
 
-import { console } from "forge-std/console.sol";
-
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -24,6 +22,8 @@ contract CoinflakesEthStrategy is BaseStrategy {
     uint256 public maxSlippage = 1000; // BPS
     uint256 public maxOracleDelay = 30 minutes;
 
+    uint8 oracleDecimals;
+
     event SwapChange(address indexed newSwap);
     event MaxSlippageChange(uint256 maxSlippage);
     event PriceFeedChange(address indexed priceFeed);
@@ -42,18 +42,16 @@ contract CoinflakesEthStrategy is BaseStrategy {
     {
         swap = ISwapper(swapAddress);
         priceFeed = IAggregator(priceFeedAddress);
+        oracleDecimals = priceFeed.decimals();
     }
 
     function _deployFunds(uint256 daiAmount) internal override withOracleSynced {
         // Compare swap offer to market price
         int256 marketPrice = priceFeed.latestAnswer();
         require(marketPrice > 0, "invalid price from oracle");
-        uint256 marketQuote = daiAmount * (10 ** 8) / uint256(marketPrice);
+        uint256 marketQuote = daiAmount * (10 ** oracleDecimals) / uint256(marketPrice);
         uint256 swapQuote = swap.previewSellA(daiAmount);
         uint256 slippage = SwapMath.sellSlippage(marketQuote, swapQuote, MAX_BPS);
-        console.log("Market quote: ", marketQuote);
-        console.log("Swap quote: ", swapQuote);
-        console.log("Slippage: ", slippage);
         require(slippage <= maxSlippage, "difference from oracle too high");
         // Swap tokens
         asset.safeTransferFrom(msg.sender, address(this), daiAmount);
@@ -62,12 +60,12 @@ contract CoinflakesEthStrategy is BaseStrategy {
     }
 
     function _freeFunds(uint256 daiAmount) internal override withOracleSynced {
-        // Compare swap off to market price
+        // Compare swap offer to market price
         int256 marketPrice = priceFeed.latestAnswer();
         require(marketPrice > 0, "invalid price from oracle");
         uint256 swapQuote = swap.previewBuyA(daiAmount);
         uint256 wethBalance = WETH.balanceOf(address(this));
-        uint256 marketQuote = daiAmount * (10 ** 8) / uint256(marketPrice);
+        uint256 marketQuote = daiAmount * (10 ** oracleDecimals) / uint256(marketPrice);
         require(SwapMath.buySlippage(marketQuote, swapQuote, MAX_BPS) <= maxSlippage, "difference from oracle too high");
         // Swap tokens
         if (swapQuote <= wethBalance) {
@@ -87,7 +85,7 @@ contract CoinflakesEthStrategy is BaseStrategy {
         // Compare swap price to market price
         int256 marketPrice = priceFeed.latestAnswer();
         require(marketPrice > 0, "invalid price from oracle");
-        uint256 marketQuote = _totalAssets * (10 ** 8) / uint256(marketPrice);
+        uint256 marketQuote = wethBalance * uint256(marketPrice) / (10 ** oracleDecimals);
         require(
             SwapMath.sellSlippage(marketQuote, _totalAssets, MAX_BPS) <= maxSlippage, "difference from oracle too high"
         );
@@ -105,6 +103,7 @@ contract CoinflakesEthStrategy is BaseStrategy {
 
     function setPriceFeed(address newPriceFeed) public onlyManagement {
         priceFeed = IAggregator(newPriceFeed);
+        oracleDecimals = priceFeed.decimals();
         emit PriceFeedChange(address(priceFeed));
     }
 
