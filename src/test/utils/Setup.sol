@@ -5,7 +5,8 @@ import "forge-std/console2.sol";
 import { ExtendedTest } from "./ExtendedTest.sol";
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { ISwapper, EthSwapper } from "swap-helpers/src/EthSwapper.sol";
+import { ISwapper } from "swap-helpers/src/EthSwapper.sol";
+import { MockEthSwapper } from "./MockEthSwapper.sol";
 import { CoinflakesEthStrategy } from "../../CoinflakesEthStrategy.sol";
 import { IStrategyInterface } from "../../interfaces/IStrategyInterface.sol";
 import { IAggregator, MockEthPriceFeed } from "./MockEthPriceFeed.sol";
@@ -74,7 +75,7 @@ contract Setup is ExtendedTest, IEvents {
     }
 
     function setUpStrategy() public returns (address) {
-        swap = new EthSwapper();
+        swap = new MockEthSwapper();
         priceFeed = new MockEthPriceFeed(address(swap));
         // we save the strategy as a IStrategyInterface to give it the needed interface
         IStrategyInterface _strategy =
