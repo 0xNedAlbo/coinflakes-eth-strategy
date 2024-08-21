@@ -10,6 +10,8 @@ contract MockEthPriceFeed is IAggregator {
     int256 public latestAnswer;
     uint256 public latestTimestamp;
 
+    uint8 public decimals = 8;
+
     constructor(address swapAddress) {
         swap = ISwapper(swapAddress);
         latestAnswer = int256(swap.previewBuyB(1 ether) / 10 ** 10);

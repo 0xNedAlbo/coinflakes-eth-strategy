@@ -5,7 +5,6 @@ import "forge-std/console2.sol";
 import { ExtendedTest } from "./ExtendedTest.sol";
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { ISwapper } from "swap-helpers/src/EthSwapper.sol";
 import { MockEthSwapper } from "./MockEthSwapper.sol";
 import { CoinflakesEthStrategy } from "../../CoinflakesEthStrategy.sol";
 import { IStrategyInterface } from "../../interfaces/IStrategyInterface.sol";
@@ -26,7 +25,7 @@ contract Setup is ExtendedTest, IEvents {
     // Contract instances that we will use repeatedly.
     ERC20 public asset;
     IStrategyInterface public strategy;
-    ISwapper public swap;
+    MockEthSwapper public swap;
     MockEthPriceFeed public priceFeed;
 
     mapping(string => address) public tokenAddrs;
@@ -156,11 +155,8 @@ contract Setup is ExtendedTest, IEvents {
     }
 
     function simulateEthUp() public {
-        deal(address(asset), address(6), 400_000 ether);
-        vm.startPrank(address(6));
-        asset.approve(address(swap), 400_000 ether);
-        swap.sellA(400_000 ether, 1, address(6));
-        vm.stopPrank();
+        uint256 currentPrice = swap.ethPrice();
+        swap.setEthPrice(currentPrice + (currentPrice / 10));
         priceFeed.update();
     }
 }
