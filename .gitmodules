@@ -17,6 +17,7 @@
 [submodule "lib/swap-helpers"]
 	path = lib/swap-helpers
 	url = https://github.com/0xNedAlbo/swap-helpers
+	branch = v0.1.0
 [submodule "lib/mock-tokens"]
 	path = lib/mock-tokens
 	url = https://github.com/0xNedAlbo/mock-tokens
