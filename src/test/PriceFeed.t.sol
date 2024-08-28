@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "forge-std/console2.sol";
 import { Setup } from "./utils/Setup.sol";
 import { CoinflakesEthStrategy } from "../CoinflakesEthStrategy.sol";
 
@@ -38,7 +37,7 @@ contract PriceFeedTest is Setup {
         priceFeed.setLatestAnswer(price / 2);
         vm.stopPrank();
 
-        vm.expectRevert(bytes("difference from oracle too high"));
+        vm.expectRevert(bytes("slippage"));
         vm.prank(user);
         strategy.deposit(daiAmount, user);
     }
@@ -53,7 +52,7 @@ contract PriceFeedTest is Setup {
         priceFeed.setLatestAnswer(priceFeed.latestAnswer() * 2);
         vm.stopPrank();
 
-        vm.expectRevert(bytes("difference from oracle too high"));
+        vm.expectRevert(bytes("slippage"));
         vm.prank(user);
         strategy.withdraw(daiAmount, user, user, 5000);
     }
@@ -68,7 +67,7 @@ contract PriceFeedTest is Setup {
         priceFeed.setLatestAnswer(priceFeed.latestAnswer() * 2);
         vm.stopPrank();
 
-        vm.expectRevert(bytes("difference from oracle too high"));
+        vm.expectRevert(bytes("slippage"));
         vm.prank(management);
         strategy.report();
     }

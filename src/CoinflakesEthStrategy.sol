@@ -1,33 +1,41 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.18;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "forge-std/src/Console.sol";
+
+import { IERC20, ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { BaseStrategy } from "@tokenized-strategy/BaseStrategy.sol";
 
 import { IAggregator } from "swap-helpers/src/interfaces/chainlink/IAggregator.sol";
-import { ISwapper } from "swap-helpers/src/interfaces/ISwapper.sol";
-import { SwapMath } from "swap-helpers/src/utils/SwapMath.sol";
 
-contract CoinflakesEthStrategy is BaseStrategy, SwapMath {
+import { ISwapHelper } from "swap-helpers/src/interfaces/ISwapHelper.sol";
+import { Slippage } from "swap-helpers/src/utils/Slippage.sol";
+
+contract CoinflakesEthStrategy is BaseStrategy {
     using SafeERC20 for IERC20;
     using SafeERC20 for ERC20;
 
+    using Slippage for uint256;
+
     uint256 public constant MAX_BPS = 10_000; // 100 Percent
-    ISwapper public swap;
+
     IAggregator public priceFeed;
+    ISwapHelper public swap;
 
     IERC20 public WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    uint256 public maxSlippage = 1000; // BPS
+    int24 public maxSlippage = 1000; // BPS
     uint256 public maxOracleDelay = 30 minutes;
 
     uint8 oracleDecimals;
 
     event SwapChange(address indexed newSwap);
-    event MaxSlippageChange(uint256 maxSlippage);
+    event MaxSlippageChange(int24 maxSlippage);
     event PriceFeedChange(address indexed priceFeed);
     event MaxOracleDelayChange(uint256 newDelay);
+
+    address private token0;
+    address private token1;
 
     modifier withOracleSynced() {
         require(priceFeed.latestTimestamp() > block.timestamp - maxOracleDelay, "oracle out of date");
@@ -40,7 +48,9 @@ contract CoinflakesEthStrategy is BaseStrategy, SwapMath {
     )
         BaseStrategy(0x6B175474E89094C44Da98b954EedeAC495271d0F, "Coinflakes Eth Strategy")
     {
-        swap = ISwapper(swapAddress);
+        swap = ISwapHelper(swapAddress);
+        token0 = swap.token0();
+        token1 = swap.token1();
         priceFeed = IAggregator(priceFeedAddress);
         oracleDecimals = priceFeed.decimals();
         emit PriceFeedChange(priceFeedAddress);
@@ -50,55 +60,53 @@ contract CoinflakesEthStrategy is BaseStrategy, SwapMath {
     }
 
     function _deployFunds(uint256 daiAmount) internal override withOracleSynced {
-        // Compare swap offer to market price
+        // Get a market quote from price feed
         int256 marketPrice = priceFeed.latestAnswer();
         require(marketPrice > 0, "invalid price from oracle");
         uint256 marketQuote = daiAmount * (10 ** oracleDecimals) / uint256(marketPrice);
-        uint256 swapQuote = swap.previewSellA(daiAmount);
-        uint256 slippage = sellSlippage(marketQuote, swapQuote, MAX_BPS);
-        require(slippage <= maxSlippage, "difference from oracle too high");
-        // Swap tokens
-        asset.safeTransferFrom(msg.sender, address(this), daiAmount);
+        // Swap tokens, apply slippage to market quote
         asset.approve(address(swap), daiAmount);
-        swap.sellA(daiAmount, 1, address(this));
-    }
-
-    function _freeFunds(uint256 daiAmount) internal override withOracleSynced {
-        // Compare swap offer to market price
-        int256 marketPrice = priceFeed.latestAnswer();
-        require(marketPrice > 0, "invalid price from oracle");
-        uint256 swapQuote = swap.previewBuyA(daiAmount);
-        uint256 wethBalance = WETH.balanceOf(address(this));
-        uint256 marketQuote = daiAmount * (10 ** oracleDecimals) / uint256(marketPrice);
-        require(buySlippage(marketQuote, swapQuote, MAX_BPS) <= maxSlippage, "difference from oracle too high");
-        // Swap tokens
-        if (swapQuote <= wethBalance) {
-            WETH.approve(address(swap), swapQuote);
-            swap.buyA(daiAmount, swapQuote, address(this));
+        if (token0 == address(asset)) {
+            swap.sellToken0(daiAmount, marketQuote.applySlippage(-maxSlippage), address(this));
         } else {
-            // If there is not enough WETH in the strategy,
-            // just sell everything.
-            WETH.approve(address(swap), wethBalance);
-            swap.sellB(wethBalance, 1, address(this));
+            swap.sellToken1(daiAmount, marketQuote.applySlippage(-maxSlippage), address(this));
         }
     }
 
-    function _harvestAndReport() internal view override withOracleSynced returns (uint256 _totalAssets) {
-        uint256 wethBalance = WETH.balanceOf(address(this));
-        _totalAssets = swap.previewSellB(wethBalance);
-        // Compare swap price to market price
+    function _freeFunds(uint256 daiAmount) internal override withOracleSynced {
         int256 marketPrice = priceFeed.latestAnswer();
         require(marketPrice > 0, "invalid price from oracle");
+        uint256 marketQuote = daiAmount * (10 ** oracleDecimals) / uint256(marketPrice);
+        uint256 wethBalance = WETH.balanceOf(address(this));
+        uint256 wethAmountMax = marketQuote.applySlippage(maxSlippage);
+        if (wethAmountMax > wethBalance) wethAmountMax = wethBalance;
+        WETH.approve(address(swap), wethAmountMax);
+        if (token0 == address(asset)) {
+            swap.buyToken0(daiAmount, wethAmountMax, address(this));
+        } else {
+            swap.buyToken1(daiAmount, wethAmountMax, address(this));
+        }
+    }
+
+    function _harvestAndReport() internal override returns (uint256 _totalAssets) {
+        int256 marketPrice = priceFeed.latestAnswer();
+        require(marketPrice > 0, "invalid price from oracle");
+        uint256 wethBalance = WETH.balanceOf(address(this));
         uint256 marketQuote = wethBalance * uint256(marketPrice) / (10 ** oracleDecimals);
-        require(sellSlippage(marketQuote, _totalAssets, MAX_BPS) <= maxSlippage, "difference from oracle too high");
+        _totalAssets = swap.previewSellToken1(wethBalance);
+        int24 slippage = marketQuote.slippage(_totalAssets);
+        require(slippage > -maxSlippage, "slippage");
     }
 
     function changeSwap(address newSwap) public onlyManagement {
-        swap = ISwapper(newSwap);
+        swap = ISwapHelper(newSwap);
+        token0 = swap.token0();
+        token1 = swap.token1();
         emit SwapChange(address(swap));
     }
 
-    function setMaxSlippage(uint256 newMaxSlippage) public onlyManagement {
+    function setMaxSlippage(int24 newMaxSlippage) public onlyManagement {
+        require(newMaxSlippage > 0, "negative slippage");
         maxSlippage = newMaxSlippage;
         emit MaxSlippageChange(maxSlippage);
     }

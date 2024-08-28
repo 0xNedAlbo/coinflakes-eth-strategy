@@ -16,9 +16,9 @@ FORK_URL := ${ETH_RPC_URL} # BASE_RPC_URL, ETH_RPC_URL, ARBITRUM_RPC_URL
 test := test_
 
 # local tests without fork
-test  :; forge test -vv --fork-url ${FORK_URL} --evm-version cancun
-trace  :; forge test -vvv --fork-url ${FORK_URL} --evm-version cancun
-gas  :; forge test --fork-url ${FORK_URL} --gas-report --evm-version cancun
+test  :; forge test -vv 
+trace  :; forge test -vvv 
+gas  :; forge test 
 test-contract  :; forge test -vv --match-contract $(contract) --fork-url ${FORK_URL} --evm-version cancun
 test-contract-gas  :; forge test --gas-report --match-contract ${contract} --fork-url ${FORK_URL} --evm-version cancun
 trace-contract  :; forge test -vvv --match-contract $(contract) --fork-url ${FORK_URL} --evm-version cancun

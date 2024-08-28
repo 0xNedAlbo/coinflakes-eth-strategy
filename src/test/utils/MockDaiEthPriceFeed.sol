@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.18;
 
-import { ISwapper } from "swap-helpers/src/interfaces/ISwapper.sol";
+import { ISwapHelper } from "swap-helpers/src/interfaces/ISwapHelper.sol";
 import { IAggregator } from "swap-helpers/src/interfaces/chainlink/IAggregator.sol";
 
-contract MockEthPriceFeed is IAggregator {
-    ISwapper public swap;
+contract MockDaiEthPriceFeed is IAggregator {
+    ISwapHelper public swap;
 
     int256 public latestAnswer;
     uint256 public latestTimestamp;
@@ -13,13 +13,13 @@ contract MockEthPriceFeed is IAggregator {
     uint8 public decimals = 8;
 
     constructor(address swapAddress) {
-        swap = ISwapper(swapAddress);
-        latestAnswer = int256(swap.previewBuyB(1 ether) / 10 ** 10);
+        swap = ISwapHelper(swapAddress);
+        latestAnswer = int256(swap.previewBuyToken1(1 ether) / 10 ** 10);
         latestTimestamp = block.timestamp;
     }
 
     function update() external {
-        latestAnswer = int256(swap.previewBuyB(1 ether) / 10 ** 10);
+        latestAnswer = int256(swap.previewBuyToken1(1 ether) / 10 ** 10);
         latestTimestamp = block.timestamp;
     }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "forge-std/console2.sol";
+import "forge-std/src/console2.sol";
 import { Setup, ERC20, IStrategyInterface } from "./utils/Setup.sol";
 
 contract OperationTest is Setup {
@@ -69,7 +69,7 @@ contract OperationTest is Setup {
 
         // Check return Values
         assertGt(profit, 0, "!profit");
-        assertEq(loss, 0, "!loss1");
+        assertEq(loss, 0, "!loss");
 
         skip(strategy.profitMaxUnlockTime());
         priceFeed.update();

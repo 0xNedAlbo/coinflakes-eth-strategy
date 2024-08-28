@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "forge-std/console2.sol";
+import "forge-std/src/console2.sol";
 import { Setup, ERC20, IStrategyInterface } from "./utils/Setup.sol";
-import { SwapMath } from "swap-helpers/src/utils/SwapMath.sol";
+import { Slippage } from "swap-helpers/src/utils/Slippage.sol";
 
-contract ShutdownTest is Setup, SwapMath {
+contract ShutdownTest is Setup {
+    using Slippage for uint256;
+
     function setUp() public virtual override {
         super.setUp();
     }
@@ -35,7 +37,7 @@ contract ShutdownTest is Setup, SwapMath {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        uint256 slippage = sellSlippage(balanceBefore + _amount, asset.balanceOf(user), 10_000);
+        int24 slippage = (balanceBefore + _amount).slippage(asset.balanceOf(user));
         assertLe(slippage, 100, "!final balance");
     }
 

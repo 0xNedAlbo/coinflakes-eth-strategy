@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
-import "forge-std/console2.sol";
+import "forge-std/src/console2.sol";
 import { ExtendedTest } from "./ExtendedTest.sol";
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { MockEthSwapper } from "./MockEthSwapper.sol";
 import { CoinflakesEthStrategy } from "../../CoinflakesEthStrategy.sol";
 import { IStrategyInterface } from "../../interfaces/IStrategyInterface.sol";
-import { IAggregator, MockEthPriceFeed } from "./MockEthPriceFeed.sol";
+
+import { ISwapHelper, UniswapV3Helper } from "swap-helpers/src/UniswapV3Helper.sol";
+
+import { IAggregator } from "swap-helpers/src/interfaces/chainlink/IAggregator.sol";
+
+import { MockDaiEthSwapHelper } from "./MockDaiEthSwapHelper.sol";
+import { MockDaiEthPriceFeed } from "./MockDaiEthPriceFeed.sol";
 
 // Inherit the events so they can be checked if desired.
 import { IEvents } from "@tokenized-strategy/interfaces/IEvents.sol";
@@ -25,8 +30,8 @@ contract Setup is ExtendedTest, IEvents {
     // Contract instances that we will use repeatedly.
     ERC20 public asset;
     IStrategyInterface public strategy;
-    MockEthSwapper public swap;
-    MockEthPriceFeed public priceFeed;
+    MockDaiEthSwapHelper public swap;
+    MockDaiEthPriceFeed public priceFeed;
 
     mapping(string => address) public tokenAddrs;
 
@@ -51,6 +56,7 @@ contract Setup is ExtendedTest, IEvents {
     uint256 public profitMaxUnlockTime = 10 days;
 
     function setUp() public virtual {
+        setUp_fork();
         _setTokenAddrs();
 
         // Set asset
@@ -73,9 +79,26 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
     }
 
+    function setUp_fork() public {
+        string memory url = vm.rpcUrl("mainnet");
+        uint256 blockNumber = vm.envUint("BLOCK");
+        assertGt(blockNumber, 0, "Please set BLOCK env variable");
+        vm.createSelectFork(url, blockNumber);
+    }
+
+    function setUp_swapHelper() public {
+        // DAI/ETH Pool on UniswapV3
+        swap = new MockDaiEthSwapHelper();
+    }
+
+    function setUp_priceFeed() public {
+        // DAI/ETH price feed on Chainlink
+        priceFeed = new MockDaiEthPriceFeed(address(swap));
+    }
+
     function setUpStrategy() public returns (address) {
-        swap = new MockEthSwapper();
-        priceFeed = new MockEthPriceFeed(address(swap));
+        setUp_swapHelper();
+        setUp_priceFeed();
         // we save the strategy as a IStrategyInterface to give it the needed interface
         IStrategyInterface _strategy =
             IStrategyInterface(address(new CoinflakesEthStrategy(address(swap), address(priceFeed))));
