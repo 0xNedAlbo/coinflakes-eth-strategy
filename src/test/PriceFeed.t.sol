@@ -52,9 +52,9 @@ contract PriceFeedTest is Setup {
         priceFeed.setLatestAnswer(priceFeed.latestAnswer() * 2);
         vm.stopPrank();
 
-        vm.expectRevert(bytes("slippage"));
-        vm.prank(user);
-        strategy.withdraw(daiAmount, user, user, 5000);
+        vm.expectRevert(bytes("oracle deviation"));
+        vm.prank(management);
+        strategy.report();
     }
 
     function test_priceFeedDifferenceOnWithdraws() public {
@@ -67,8 +67,10 @@ contract PriceFeedTest is Setup {
         priceFeed.setLatestAnswer(priceFeed.latestAnswer() * 2);
         vm.stopPrank();
 
+        vm.startPrank(user);
+        strategy.approve(address(strategy), type(uint256).max);
         vm.expectRevert(bytes("slippage"));
-        vm.prank(management);
-        strategy.report();
+        strategy.withdraw(daiAmount, user, user, 5000);
+        vm.stopPrank();
     }
 }

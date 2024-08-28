@@ -95,7 +95,8 @@ contract CoinflakesEthStrategy is BaseStrategy {
         uint256 marketQuote = wethBalance * uint256(marketPrice) / (10 ** oracleDecimals);
         _totalAssets = swap.previewSellToken1(wethBalance);
         int24 slippage = marketQuote.slippage(_totalAssets);
-        require(slippage > -maxSlippage, "slippage");
+        require(slippage > -maxSlippage, "oracle deviation");
+        _totalAssets += asset.balanceOf(address(this));
     }
 
     function changeSwap(address newSwap) public onlyManagement {

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "forge-std/src/console2.sol";
 import { Setup, ERC20, IStrategyInterface } from "./utils/Setup.sol";
 
 contract OperationTest is Setup {
@@ -10,7 +9,6 @@ contract OperationTest is Setup {
     }
 
     function test_setupStrategyOK() public {
-        console2.log("address of strategy", address(strategy));
         assertTrue(address(0) != address(strategy));
         assertEq(strategy.asset(), address(asset));
         assertEq(strategy.management(), management);
