@@ -109,6 +109,8 @@ contract Setup is ExtendedTest, IEvents {
         _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
         // set management of the strategy
         _strategy.setPendingManagement(management);
+        // set depositor
+        CoinflakesEthStrategy(address(_strategy)).allowDepositor(user);
 
         vm.prank(management);
         _strategy.acceptManagement();

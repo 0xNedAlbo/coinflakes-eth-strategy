@@ -3,6 +3,8 @@ pragma solidity >=0.8.18;
 
 import "forge-std/src/Console.sol";
 
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
 import { IERC20, ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { BaseStrategy } from "@tokenized-strategy/BaseStrategy.sol";
@@ -17,6 +19,8 @@ contract CoinflakesEthStrategy is BaseStrategy {
     using SafeERC20 for ERC20;
 
     using Slippage for uint256;
+
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 public constant MAX_BPS = 10_000; // 100 Percent
 
@@ -36,6 +40,11 @@ contract CoinflakesEthStrategy is BaseStrategy {
 
     address private token0;
     address private token1;
+
+    EnumerableSet.AddressSet allowedDepositors;
+
+    event AllowDepositor(address indexed depositor);
+    event DisallowDepositor(address indexed depositor);
 
     modifier withOracleSynced() {
         require(priceFeed.latestTimestamp() > block.timestamp - maxOracleDelay, "oracle out of date");
@@ -99,6 +108,19 @@ contract CoinflakesEthStrategy is BaseStrategy {
         _totalAssets += asset.balanceOf(address(this));
     }
 
+    function availableDepositLimit(address owner) public view virtual override returns (uint256) {
+        if (allowedDepositors.contains(owner)) return type(uint256).max;
+        return 0;
+    }
+
+    function _emergencyWithdraw(uint256 _amount) internal virtual override {
+        uint256 wethBalance = WETH.balanceOf(address(this));
+        uint256 wethRequired = swap.previewBuyToken0(_amount).applySlippage(maxSlippage);
+        if (wethBalance < wethRequired) wethRequired = wethBalance;
+        WETH.approve(address(swap), wethRequired);
+        swap.buyToken0(_amount, wethRequired, address(this));
+    }
+
     function changeSwap(address newSwap) public onlyManagement {
         swap = ISwapHelper(newSwap);
         token0 = swap.token0();
@@ -121,5 +143,17 @@ contract CoinflakesEthStrategy is BaseStrategy {
     function setMaxOracleDelay(uint256 newDelay) public onlyManagement {
         maxOracleDelay = newDelay;
         emit MaxOracleDelayChange(maxOracleDelay);
+    }
+
+    function allowDepositor(address depositor) public onlyManagement {
+        if (allowedDepositors.add(depositor)) emit AllowDepositor(depositor);
+    }
+
+    function disallowDepositor(address depositor) public onlyManagement {
+        if (allowedDepositors.remove(depositor)) emit DisallowDepositor(depositor);
+    }
+
+    function isallowedDepositor(address depositor) public view returns (bool) {
+        return allowedDepositors.contains(depositor);
     }
 }

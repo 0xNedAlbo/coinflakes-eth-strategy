@@ -19,19 +19,21 @@ test := test_
 test  :; forge test -vv 
 trace  :; forge test -vvv 
 gas  :; forge test 
-test-contract  :; forge test -vv --match-contract $(contract) --fork-url ${FORK_URL} --evm-version cancun
-test-contract-gas  :; forge test --gas-report --match-contract ${contract} --fork-url ${FORK_URL} --evm-version cancun
-trace-contract  :; forge test -vvv --match-contract $(contract) --fork-url ${FORK_URL} --evm-version cancun
-test-test  :; forge test -vv --match-test $(test) --fork-url ${FORK_URL} --evm-version cancun
-test-test-trace  :; forge test -vvv --match-test $(test) --fork-url ${FORK_URL} --evm-version cancun
-trace-test  :; forge test -vvvvv --match-test $(test) --fork-url ${FORK_URL} --evm-version cancun
-snapshot :; forge snapshot -vv --fork-url ${FORK_URL} --evm-version cancun
-snapshot-diff :; forge snapshot --diff -vv --fork-url ${FORK_URL} --evm-version cancun
-trace-setup  :; forge test -vvvv --fork-url ${FORK_URL} --evm-version cancun
-trace-max  :; forge test -vvvvv --fork-url ${FORK_URL} --evm-version cancun
-coverage :; forge coverage --fork-url ${FORK_URL} --evm-version cancun
-coverage-report :; forge coverage --report lcov --fork-url ${FORK_URL} --evm-version cancun
-coverage-debug :; forge coverage --report debug --fork-url ${FORK_URL} --evm-version cancun
+test-contract  :; forge test -vv --match-contract $(contract) 
+test-contract-gas  :; forge test --gas-report --match-contract $(contract)
+trace-contract  :; forge test -vvv --match-contract $(contract) 
+test-test  :; forge test -vv --match-test $(test) 
+test-test-trace  :; forge test -vvv --match-test $(test) 
+trace-test  :; forge test -vvvvv --match-test $(test) 
+snapshot :; forge snapshot -vv 
+snapshot-diff :; forge snapshot --diff -vv 
+trace-setup  :; forge test -vvvv 
+trace-max  :; forge test -vvvvv 
+coverage :; forge coverage 
+coverage-report :; forge coverage --report lcov 
+coverage-debug :; forge coverage --report debug 
 
 
-clean  :; forge clean
+clean	:; forge clean
+	
+block:; export BLOCK=`cast block-number -r https://eth-mainnet.g.alchemy.com/v2/${API_KEY_ALCHEMY}`
