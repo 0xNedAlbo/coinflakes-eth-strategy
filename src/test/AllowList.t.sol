@@ -19,6 +19,10 @@ contract ShutdownTest is Setup {
         vm.assume(depositor != user);
         airdrop(asset, depositor, minFuzzAmount);
 
+        // check if allowed user can deposit
+        uint256 userMaxDeposit = strategy.maxDeposit(user);
+        require(userMaxDeposit > 0, "!allowed user cannot deposit");
+
         vm.prank(depositor);
         IERC20(asset).approve(depositor, minFuzzAmount);
 
